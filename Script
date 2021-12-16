@@ -1,0 +1,39 @@
+#Bubble plot for ArchR data script
+
+geneintegration= getMatrixFromProject(ArchRProj, useMatrix="GeneIntegrationMatrix")
+geneintedata=assay(geneintegration)
+genedata=rowData(geneintegration)
+geneinteinfo=cbind(genedata, geneintedata)
+geneinteinfo2=as.data.frame(t(as.data.frame(geneinteinfo[,7:length(colnames(geneinteinfo))])))
+colnames(geneinteinfo2)=genedata$name
+rownames(geneinteinfo2)=colnames(geneinteinfo)[7:length(colnames(geneinteinfo))]
+for(i in rownames(geneinteinfo2)){
+  geneinteinfo2[i,"Clusters"]=ArchRProj$Clusters[which(ArchRProj$cellNames==i)]
+  geneinteinfo2[i,"Samples"]=ArchRProj$Sample[which(ArchRProj$cellNames==i)]
+}
+
+bubble_plot_info=data.frame()
+for(i in gene_list){
+  for(k in 1:length(unique(geneinteinfo2$Clusters))){
+    a=nrow(bubble_plot_info)
+    l=unique(geneinteinfo2$Clusters)[k]
+    bubble_plot_info[a+1,"gene_name"]=i
+    bubble_plot_info[a+1,"Clusters"]=l
+    eval(parse(text=(paste("bubble_plot_info[",a,"+1,'pct_exp']=(length(geneinteinfo2[(geneinteinfo2$",i,">0 & geneinteinfo2$Clusters=='",l,"'),'",i,"'])/nrow(geneinteinfo2[geneinteinfo2$Clusters=='",l,"',]))*100", sep=""))))
+    eval(parse(text=(paste("bubble_plot_info[",a,"+1,'avg_exp']=mean(geneinteinfo2[geneinteinfo2$",i,">0 & geneinteinfo2$Clusters=='",l,"','",i,"'])", sep=""))))
+  }
+}
+
+pdf("Save-ArchRProj/Plots/Bubble-plot.pdf", width=17, height=7)
+ggplot(data = bubble_plot_info, mapping = aes_string(x = 'gene_name', y = 'Clusters')) +
+  geom_point(mapping = aes_string(size = 'pct_exp', color = "avg_exp")) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  guides(size = guide_legend(title = 'Percent Expressed')) +
+  labs(
+    x = 'gene_name',
+    y = 'Clusters'
+  )+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust = 0))
+dev.off()
